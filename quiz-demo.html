@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Demo - Aisha Classroom</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .quiz-container { max-width: 800px; margin: 0 auto; }
+        .question { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .options { margin: 10px 0; }
+        .option { margin: 5px 0; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .teacher-panel, .student-panel { border: 2px solid #ccc; padding: 20px; margin: 20px 0; display: none; }
+        .teacher-panel { border-color: #4CAF50; }
+        .student-panel { border-color: #2196F3; }
+        .results { background: #f9f9f9; padding: 15px; margin: 10px 0; }
+        input, textarea, select { padding: 8px; margin: 5px; width: 200px; }
+        .quiz-form { background: #f5f5f5; padding: 15px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <h1>Aisha Quiz System</h1>
+        
+        <!-- Teacher Panel -->
+        <div class="teacher-panel">
+            <h2>Teacher Panel</h2>
+            
+            <div class="quiz-form">
+                <h3>Create Quiz</h3>
+                <input type="text" id="quizTitle" placeholder="Quiz Title" />
+                <input type="number" id="timeLimit" placeholder="Time Limit (minutes)" value="30" />
+                
+                <div id="questionsContainer">
+                    <div class="question-form">
+                        <h4>Question 1</h4>
+                        <textarea id="q1text" placeholder="Question text"></textarea><br>
+                        <input type="text" id="q1opt1" placeholder="Option 1" />
+                        <input type="text" id="q1opt2" placeholder="Option 2" />
+                        <input type="text" id="q1opt3" placeholder="Option 3" />
+                        <input type="text" id="q1opt4" placeholder="Option 4" /><br>
+                        <select id="q1correct">
+                            <option value="0">Option 1 is correct</option>
+                            <option value="1">Option 2 is correct</option>
+                            <option value="2">Option 3 is correct</option>
+                            <option value="3">Option 4 is correct</option>
+                        </select>
+                        <input type="number" id="q1points" placeholder="Points" value="10" />
+                    </div>
+                </div>
+                
+                <button onclick="addQuestion()">Add Question</button>
+                <button onclick="createQuiz()">Create Quiz</button>
+            </div>
+            
+            <div>
+                <h3>Quiz Management</h3>
+                <button onclick="getSubmissions()">View Submissions</button>
+                <button onclick="closeQuiz()">Close Current Quiz</button>
+            </div>
+            
+            <div id="submissions"></div>
+        </div>
+        
+        <!-- Student Panel -->
+        <div class="student-panel">
+            <h2>Student Panel</h2>
+            
+            <div id="activeQuiz" style="display: none;">
+                <h3 id="quizTitleDisplay"></h3>
+                <div id="quizQuestions"></div>
+                <button onclick="submitQuiz()">Submit Quiz</button>
+            </div>
+            
+            <div>
+                <h3>Quiz Actions</h3>
+                <button onclick="getActiveQuizzes()">Check for Active Quizzes</button>
+                <button onclick="getMyResults()">View My Results</button>
+                <div id="myResults"></div>
+            </div>
+        </div>
+        
+        <!-- Connection Status -->
+        <div>
+            <h3>Connection</h3>
+            <input type="text" id="roomId" placeholder="Room ID" value="DEMO123" />
+            <input type="text" id="username" placeholder="Username" />
+            <button onclick="connect()">Connect</button>
+            <button onclick="goHome()" style="background: #6b7280; color: white; padding: 10px 20px; margin: 5px; cursor: pointer; border: none; border-radius: 5px;">🏠 Home</button>
+            <span id="status">Disconnected</span>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let currentQuiz = null;
+        let questionCount = 1;
+        let isTeacher = false;
+        let userId = null;
+        
+        // Initially hide both panels
+        window.onload = function() {
+            document.querySelector('.teacher-panel').style.display = 'none';
+            document.querySelector('.student-panel').style.display = 'none';
+            
+            // Check for stored user info from homepage or index.html
+            const storedUsername = localStorage.getItem('username') || localStorage.getItem('quizUsername');
+            const storedRole = localStorage.getItem('userRole');
+            const storedRoomId = localStorage.getItem('quizRoomId');
+            
+            if (storedUsername) {
+                document.getElementById('username').value = storedUsername;
+            }
+            
+            if (storedRoomId) {
+                document.getElementById('roomId').value = storedRoomId;
+            }
+            
+            // Auto-connect if coming from index.html with room info
+            if (storedUsername && storedRole && storedRoomId) {
+                displayStatus(`Welcome ${storedRole}! Connecting to room ${storedRoomId}...`, 'info');
+                // Auto-connect after a short delay
+                setTimeout(() => {
+                    connect();
+                }, 500);
+            } else if (storedUsername && storedRole) {
+                // Coming from homepage without room info
+                document.getElementById('roomId').value = 'QUIZ' + Math.random().toString(36).substring(2, 8).toUpperCase();
+                displayStatus(`Welcome ${storedRole}! Enter room ID to continue.`, 'info');
+            }
+        };
+
+        function connect() {
+            const roomId = document.getElementById('roomId').value;
+            const username = document.getElementById('username').value;
+            
+            if (!roomId || !username) {
+                alert('Please enter room ID and username');
+                return;
+            }
+
+            ws = new WebSocket(`ws://localhost:8080/ws?room=${roomId}&username=${username}`);
+            
+            ws.onopen = function() {
+                document.getElementById('status').textContent = 'Connected';
+            };
+            
+            ws.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                handleMessage(message);
+            };
+            
+            ws.onclose = function() {
+                document.getElementById('status').textContent = 'Disconnected';
+            };
+        }
+
+        function handleMessage(message) {
+            switch(message.type) {
+                case 'assigned-id':
+                    userId = message.userId;
+                    isTeacher = (message.userId === message.teacherId);
+                    document.getElementById('status').textContent = 
+                        `Connected as ${isTeacher ? 'Teacher' : 'Student'}`;
+                    
+                    // Show/hide panels based on role
+                    document.querySelector('.teacher-panel').style.display = isTeacher ? 'block' : 'none';
+                    document.querySelector('.student-panel').style.display = isTeacher ? 'none' : 'block';
+                    break;
+                    
+                case 'quiz-created':
+                    if (!isTeacher) {
+                        displayQuiz(message.quizData);
+                    }
+                    break;
+                    
+                case 'quiz-submission-confirmed':
+                    alert('Quiz submitted successfully!');
+                    document.getElementById('activeQuiz').style.display = 'none';
+                    break;
+                    
+                case 'quiz-submitted':
+                    if (isTeacher) {
+                        alert(`New quiz submission from ${message.quizSubmission.studentName}`);
+                    }
+                    break;
+                    
+                case 'quiz-graded':
+                    if (!isTeacher) {
+                        alert(`Your quiz has been graded! Score: ${message.quizSubmission.score}/${message.quizSubmission.maxScore}`);
+                    }
+                    break;
+                    
+                case 'quiz-submissions':
+                    if (isTeacher) {
+                        displaySubmissions(message.submissions);
+                    }
+                    break;
+                    
+                case 'my-quiz-results':
+                    displayMyResults(message.submissions);
+                    break;
+                    
+                case 'quiz-closed':
+                    alert('Quiz has been closed by the teacher');
+                    document.getElementById('activeQuiz').style.display = 'none';
+                    break;
+            }
+        }
+
+        function addQuestion() {
+            questionCount++;
+            const container = document.getElementById('questionsContainer');
+            const questionDiv = document.createElement('div');
+            questionDiv.className = 'question-form';
+            questionDiv.innerHTML = `
+                <h4>Question ${questionCount}</h4>
+                <textarea id="q${questionCount}text" placeholder="Question text"></textarea><br>
+                <input type="text" id="q${questionCount}opt1" placeholder="Option 1" />
+                <input type="text" id="q${questionCount}opt2" placeholder="Option 2" />
+                <input type="text" id="q${questionCount}opt3" placeholder="Option 3" />
+                <input type="text" id="q${questionCount}opt4" placeholder="Option 4" /><br>
+                <select id="q${questionCount}correct">
+                    <option value="0">Option 1 is correct</option>
+                    <option value="1">Option 2 is correct</option>
+                    <option value="2">Option 3 is correct</option>
+                    <option value="3">Option 4 is correct</option>
+                </select>
+                <input type="number" id="q${questionCount}points" placeholder="Points" value="10" />
+            `;
+            container.appendChild(questionDiv);
+        }
+
+        function createQuiz() {
+            if (!ws || !isTeacher) return;
+            
+            const title = document.getElementById('quizTitle').value;
+            const timeLimit = parseInt(document.getElementById('timeLimit').value);
+            
+            if (!title) {
+                alert('Please enter a quiz title');
+                return;
+            }
+            
+            const questions = [];
+            for (let i = 1; i <= questionCount; i++) {
+                const text = document.getElementById(`q${i}text`).value;
+                const opt1 = document.getElementById(`q${i}opt1`).value;
+                const opt2 = document.getElementById(`q${i}opt2`).value;
+                const opt3 = document.getElementById(`q${i}opt3`).value;
+                const opt4 = document.getElementById(`q${i}opt4`).value;
+                const correct = parseInt(document.getElementById(`q${i}correct`).value);
+                const points = parseInt(document.getElementById(`q${i}points`).value);
+                
+                if (text && opt1 && opt2 && opt3 && opt4) {
+                    questions.push({
+                        id: `q${i}`,
+                        text: text,
+                        options: [opt1, opt2, opt3, opt4],
+                        correct: correct,
+                        points: points
+                    });
+                }
+            }
+            
+            if (questions.length === 0) {
+                alert('Please add at least one complete question');
+                return;
+            }
+            
+            const message = {
+                type: 'create-quiz',
+                quizData: {
+                    title: title,
+                    questions: questions,
+                    timeLimit: timeLimit
+                }
+            };
+            
+            ws.send(JSON.stringify(message));
+        }
+
+        function displayQuiz(quiz) {
+            currentQuiz = quiz;
+            document.getElementById('quizTitleDisplay').textContent = quiz.title;
+            
+            const questionsDiv = document.getElementById('quizQuestions');
+            questionsDiv.innerHTML = '';
+            
+            quiz.questions.forEach((question, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question';
+                questionDiv.innerHTML = `
+                    <h4>${question.text} (${question.points} points)</h4>
+                    <div class="options">
+                        ${question.options.map((option, optIndex) => `
+                            <div class="option">
+                                <input type="radio" name="q${index}" value="${optIndex}" id="q${index}opt${optIndex}">
+                                <label for="q${index}opt${optIndex}">${option}</label>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                questionsDiv.appendChild(questionDiv);
+            });
+            
+            document.getElementById('activeQuiz').style.display = 'block';
+        }
+
+        function submitQuiz() {
+            if (!ws || !currentQuiz) return;
+            
+            const answers = [];
+            currentQuiz.questions.forEach((question, index) => {
+                const selected = document.querySelector(`input[name="q${index}"]:checked`);
+                if (selected) {
+                    answers.push({
+                        questionId: question.id,
+                        answer: parseInt(selected.value)
+                    });
+                }
+            });
+            
+            const message = {
+                type: 'submit-quiz',
+                quizId: currentQuiz.id,
+                quizAnswers: answers
+            };
+            
+            ws.send(JSON.stringify(message));
+        }
+
+        function getSubmissions() {
+            if (!ws || !isTeacher) return;
+            
+            ws.send(JSON.stringify({
+                type: 'get-quiz-submissions'
+            }));
+        }
+
+        function displaySubmissions(submissions) {
+            const submissionsDiv = document.getElementById('submissions');
+            submissionsDiv.innerHTML = '<h3>Quiz Submissions</h3>';
+            
+            submissions.forEach(submission => {
+                const submissionDiv = document.createElement('div');
+                submissionDiv.className = 'results';
+                submissionDiv.innerHTML = `
+                    <h4>${submission.studentName}</h4>
+                    <p>Score: ${submission.score}/${submission.maxScore}</p>
+                    <p>Submitted: ${new Date(submission.submittedAt).toLocaleString()}</p>
+                    <p>Status: ${submission.graded ? 'Graded' : 'Pending'}</p>
+                    ${submission.feedback ? `<p>Feedback: ${submission.feedback}</p>` : ''}
+                    ${!submission.graded ? `
+                        <input type="number" id="score_${submission.id}" placeholder="Score" max="${submission.maxScore}">
+                        <textarea id="feedback_${submission.id}" placeholder="Feedback"></textarea>
+                        <button onclick="gradeSubmission('${submission.id}', ${submission.maxScore})">Grade</button>
+                    ` : ''}
+                `;
+                submissionsDiv.appendChild(submissionDiv);
+            });
+        }
+
+        function gradeSubmission(submissionId, maxScore) {
+            const score = parseInt(document.getElementById(`score_${submissionId}`).value);
+            const feedback = document.getElementById(`feedback_${submissionId}`).value;
+            
+            if (score < 0 || score > maxScore) {
+                alert(`Score must be between 0 and ${maxScore}`);
+                return;
+            }
+            
+            const message = {
+                type: 'grade-quiz',
+                quizSubmission: {
+                    id: submissionId,
+                    score: score,
+                    feedback: feedback
+                }
+            };
+            
+            ws.send(JSON.stringify(message));
+        }
+
+        function getMyResults() {
+            if (!ws || isTeacher) return;
+            
+            ws.send(JSON.stringify({
+                type: 'get-my-quiz-results'
+            }));
+        }
+
+        function displayMyResults(results) {
+            const resultsDiv = document.getElementById('myResults');
+            resultsDiv.innerHTML = '<h4>My Quiz Results</h4>';
+            
+            if (results.length === 0) {
+                resultsDiv.innerHTML += '<p>No graded quizzes yet.</p>';
+                return;
+            }
+            
+            results.forEach(result => {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'results';
+                resultDiv.innerHTML = `
+                    <p>Score: ${result.score}/${result.maxScore} (${Math.round(result.score/result.maxScore*100)}%)</p>
+                    <p>Submitted: ${new Date(result.submittedAt).toLocaleString()}</p>
+                    ${result.feedback ? `<p>Feedback: ${result.feedback}</p>` : ''}
+                `;
+                resultsDiv.appendChild(resultDiv);
+            });
+        }
+
+        function closeQuiz() {
+            if (!ws || !isTeacher || !currentQuiz) return;
+            
+            ws.send(JSON.stringify({
+                type: 'close-quiz',
+                quizId: currentQuiz.id
+            }));
+        }
+        
+        function goHome() {
+            // Clear stored user data
+            localStorage.removeItem('username');
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('quizUsername');
+            localStorage.removeItem('quizRoomId');
+            // Redirect to homepage
+            window.location.href = 'homepage.html';
+        }
+        
+        function displayStatus(message, type) {
+            // Simple status display function
+            console.log(`${type}: ${message}`);
+        }
+
+        function getActiveQuizzes() {
+            if (!ws || isTeacher) return;
+            
+            ws.send(JSON.stringify({
+                type: 'get-active-quizzes'
+            }));
+        }
+    </script>
+</body>
+</html>
