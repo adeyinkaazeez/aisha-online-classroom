@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Aisha Online Classroom</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .welcome-container {
+            text-align: center;
+            color: white;
+            max-width: 600px;
+            padding: 3rem;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        .logo {
+            font-size: 4rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, #fff, #f0f0f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 4px 20px rgba(255, 255, 255, 0.3);
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            font-weight: 300;
+            margin-bottom: 3rem;
+            opacity: 0.9;
+        }
+
+        .role-buttons {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-bottom: 3rem;
+        }
+
+        .role-btn {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 1.5rem 2.5rem;
+            border-radius: 20px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 200px;
+        }
+
+        .role-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .feature {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-desc {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .role-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .features {
+                grid-template-columns: 1fr;
+            }
+            
+            .logo {
+                font-size: 3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="welcome-container">
+        <h1 class="logo">🎓 Aisha</h1>
+        <p class="subtitle">Modern Online Classroom Experience</p>
+        
+        <div class="role-buttons">
+            <button class="role-btn" onclick="selectRole('teacher')">
+                👩🏫 Continue as Teacher
+            </button>
+            <button class="role-btn" onclick="selectRole('student')">
+                👨🎓 Continue as Student
+            </button>
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">📝</div>
+                <div class="feature-title">Interactive Whiteboard</div>
+                <div class="feature-desc">Draw, write, and collaborate in real-time</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🎥</div>
+                <div class="feature-title">Video Conferencing</div>
+                <div class="feature-desc">Face-to-face learning experience</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📊</div>
+                <div class="feature-title">Quiz System</div>
+                <div class="feature-desc">Create and take interactive quizzes</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📁</div>
+                <div class="feature-title">File Sharing</div>
+                <div class="feature-desc">Share documents and resources</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function selectRole(role) {
+            console.log('Role selected:', role);
+            localStorage.setItem('userRole', role);
+            localStorage.setItem('username', 'User');
+            console.log('Navigating to index.html');
+            window.location.href = '/index.html?t=' + Date.now();
+        }
+    </script>
+</body>
+</html>
