@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class Recording Playback</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .btn-primary {
+            @apply bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-semibold;
+        }
+        .btn-secondary {
+            @apply bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-semibold;
+        }
+        .btn-danger {
+            @apply bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-semibold;
+        }
+        .modern-input {
+            @apply px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200;
+        }
+        .status-success {
+            @apply bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg;
+        }
+        .status-error {
+            @apply bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg;
+        }
+        .status-info {
+            @apply bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded-lg;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">🎬 Class Recording Playback</h1>
+            <p class="text-gray-600">Watch complete class recordings with synchronized video, audio, and whiteboard</p>
+        </div>
+
+        <!-- Recording Selection -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">📋 Select Recording</h2>
+            
+            <div class="flex gap-4 mb-4">
+                <input type="text" id="roomInput" placeholder="Room ID (e.g., class101)" class="modern-input flex-1">
+                <button id="loadRecordingsBtn" class="btn-primary">Load Recordings</button>
+            </div>
+
+            <!-- Recordings List -->
+            <div id="recordingsList" class="space-y-3 max-h-60 overflow-y-auto">
+                <!-- Recordings will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Playback Interface -->
+        <div id="playbackInterface" class="hidden">
+            <!-- Recording Info -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-semibold text-gray-700">▶️ Now Playing</h2>
+                    <button id="backToListBtn" class="btn-secondary">← Back to List</button>
+                </div>
+                <div id="recordingInfo" class="text-gray-600">
+                    <!-- Recording details will be shown here -->
+                </div>
+            </div>
+
+            <!-- Main Playback Area -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <!-- Video/Audio Player -->
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-4">📹 Video & Audio</h3>
+                    <div id="mediaContainer" class="space-y-4">
+                        <!-- Video and audio players will be added here -->
+                    </div>
+                </div>
+
+                <!-- Whiteboard Playback -->
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-4">✏️ Whiteboard</h3>
+                    <div class="relative w-full h-[400px] border-2 border-gray-300 rounded-xl shadow-xl bg-white">
+                        <canvas id="whiteboardCanvas" class="w-full h-full rounded-xl"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Playback Controls -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h3 class="text-xl font-semibold text-gray-700 mb-4">🎮 Playback Controls</h3>
+                
+                <!-- Control Buttons -->
+                <div class="flex flex-wrap gap-4 mb-4">
+                    <button id="playBtn" class="btn-primary">▶️ Play</button>
+                    <button id="pauseBtn" class="btn-secondary hidden">⏸️ Pause</button>
+                    <button id="stopBtn" class="btn-danger">⏹️ Stop</button>
+                    <button id="restartBtn" class="btn-secondary">🔄 Restart</button>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-sm text-gray-600 mb-2">
+                        <span id="currentTime">00:00</span>
+                        <span id="totalTime">00:00</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-3">
+                        <div id="progressBar" class="bg-blue-600 h-3 rounded-full transition-all duration-200" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Speed Control -->
+                <div class="flex items-center gap-4">
+                    <label class="text-gray-700 font-medium">Playback Speed:</label>
+                    <select id="speedSelect" class="modern-input">
+                        <option value="0.5">0.5x</option>
+                        <option value="0.75">0.75x</option>
+                        <option value="1" selected>1x</option>
+                        <option value="1.25">1.25x</option>
+                        <option value="1.5">1.5x</option>
+                        <option value="2">2x</option>
+                    </select>
+                </div>
+
+                <!-- Status -->
+                <div id="playbackStatus" class="mt-4 p-3 bg-gray-100 rounded-lg text-center text-gray-600">
+                    Ready to play
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Messages -->
+        <div id="statusContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+    </div>
+
+    <script>
+        // Global variables
+        let ws;
+        let currentRecording = null;
+        let isPlaying = false;
+        let playbackStartTime = 0;
+        let whiteboardStartTime = 0;
+        let playbackInterval = null;
+        let whiteboardInterval = null;
+        let currentWhiteboardIndex = 0;
+        let videoPlayer = null;
+        let audioPlayer = null;
+        let screenPlayer = null; // Added for screen share
+        let canvas = null;
+        let ctx = null;
+
+        // DOM elements
+        const roomInput = document.getElementById('roomInput');
+        const loadRecordingsBtn = document.getElementById('loadRecordingsBtn');
+        const recordingsList = document.getElementById('recordingsList');
+        const playbackInterface = document.getElementById('playbackInterface');
+        const backToListBtn = document.getElementById('backToListBtn');
+        const recordingInfo = document.getElementById('recordingInfo');
+        const mediaContainer = document.getElementById('mediaContainer');
+        const whiteboardCanvas = document.getElementById('whiteboardCanvas');
+        const playBtn = document.getElementById('playBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const progressBar = document.getElementById('progressBar');
+        const currentTime = document.getElementById('currentTime');
+        const totalTime = document.getElementById('totalTime');
+        const speedSelect = document.getElementById('speedSelect');
+        const playbackStatus = document.getElementById('playbackStatus');
+        const statusContainer = document.getElementById('statusContainer');
+
+        // Initialize canvas
+        function initCanvas() {
+            canvas = whiteboardCanvas;
+            ctx = canvas.getContext('2d');
+            
+            // Set canvas size
+            const parent = canvas.parentElement;
+            canvas.width = parent.clientWidth - 32; // Account for padding
+            canvas.height = parent.clientHeight - 32;
+            
+            // Set canvas style
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+        }
+
+        // Initialize page
+        function init() {
+            initCanvas();
+            setupEventListeners();
+            
+            // Get room ID from URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomId = urlParams.get('room');
+            if (roomId) {
+                roomInput.value = roomId;
+            }
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            loadRecordingsBtn.addEventListener('click', loadRecordings);
+            backToListBtn.addEventListener('click', showRecordingsList);
+            playBtn.addEventListener('click', startPlayback);
+            pauseBtn.addEventListener('click', pausePlayback);
+            stopBtn.addEventListener('click', stopPlayback);
+            restartBtn.addEventListener('click', restartPlayback);
+            speedSelect.addEventListener('change', updatePlaybackSpeed);
+            
+            // Handle window resize
+            window.addEventListener('resize', initCanvas);
+        }
+
+        // Display status messages
+        function displayStatus(message, type = 'info') {
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status-${type}`;
+            statusDiv.textContent = message;
+            
+            statusContainer.appendChild(statusDiv);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (statusDiv.parentNode) {
+                    statusDiv.remove();
+                }
+            }, 5000);
+        }
+
+        // Load recordings for the room
+        async function loadRecordings() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomId = urlParams.get('room') || document.getElementById('roomInput').value.trim();
+            
+            if (!roomId) {
+                displayStatus('Please enter a room ID', 'error');
+                return;
+            }
+
+            try {
+                displayStatus('Loading recordings...', 'info');
+                
+                // Connect to WebSocket with a proper username for playback
+                const playbackUsername = `playback-${Date.now()}`;
+                ws = new WebSocket(`ws://localhost:8080/ws?room=${roomId}&username=${playbackUsername}`);
+                
+                ws.onopen = () => {
+                    console.log('WebSocket connected for playback');
+                    ws.send(JSON.stringify({
+                        type: 'get-recordings',
+                        roomId: roomId
+                    }));
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        console.log('Received message:', message);
+                        
+                        switch (message.type) {
+                            case 'recordings-list':
+                                displayRecordings(message.recordings);
+                                break;
+                            case 'recording-loaded':
+                                loadRecordingForPlayback(message.payload);
+                                break;
+                            case 'error':
+                                displayStatus(`Error: ${message.payload}`, 'error');
+                                break;
+                            case 'assigned-id':
+                                // This is the initial connection message, ignore it
+                                console.log('Connected to room:', message.roomId);
+                                break;
+                            default:
+                                console.log('Unhandled message type:', message.type);
+                        }
+                    } catch (error) {
+                        console.error('Error parsing message:', error);
+                        displayStatus('Error parsing server response', 'error');
+                    }
+                };
+                
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    displayStatus('Connection error - trying fallback method...', 'warning');
+                    // Try fallback method
+                    loadRecordingsFallback(roomId);
+                };
+                
+                ws.onclose = (event) => {
+                    console.log('WebSocket connection closed:', event.code, event.reason);
+                    if (event.code !== 1000) {
+                        displayStatus('Connection closed unexpectedly', 'error');
+                    }
+                };
+                
+            } catch (error) {
+                console.error('Error loading recordings:', error);
+                displayStatus(`Failed to load recordings: ${error.message}`, 'error');
+            }
+        }
+
+        // Fallback method to load recordings via HTTP
+        async function loadRecordingsFallback(roomId) {
+            try {
+                const response = await fetch(`/recording/${roomId}`);
+                if (response.ok) {
+                    const recording = await response.json();
+                    displayRecordings([recording]);
+                } else {
+                    displayStatus('No recordings found for this room', 'info');
+                }
+            } catch (error) {
+                console.error('Fallback method failed:', error);
+                displayStatus('Unable to load recordings', 'error');
+            }
+        }
+
+        // Display recordings list
+        function displayRecordings(recordings) {
+            recordingsList.innerHTML = '';
+            
+            if (recordings.length === 0) {
+                recordingsList.innerHTML = '<p class="text-gray-500 text-center py-4">No recordings found for this room.</p>';
+                return;
+            }
+            
+            recordings.forEach(recording => {
+                const recordingDiv = document.createElement('div');
+                recordingDiv.className = 'bg-gray-50 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-colors';
+                recordingDiv.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h4 class="font-semibold text-gray-800">${recording.subject || 'Unnamed Recording'}</h4>
+                            <p class="text-sm text-gray-600">Duration: ${formatDuration(recording.duration)} | Created: ${new Date(recording.startTime).toLocaleString()}</p>
+                            <p class="text-xs text-gray-500">Teacher: ${recording.teacherUsername || 'Unknown'}</p>
+                        </div>
+                        <button class="btn-primary" onclick="selectRecording('${recording.id}')">Play</button>
+                    </div>
+                `;
+                recordingsList.appendChild(recordingDiv);
+            });
+            
+            displayStatus(`Loaded ${recordings.length} recording(s)`, 'success');
+        }
+
+        // Select a recording for playback
+        function selectRecording(recordingId) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'load-recording',
+                    recordingId: recordingId
+                }));
+            }
+        }
+
+        // Load recording for playback
+        function loadRecordingForPlayback(recording) {
+            currentRecording = recording;
+            
+            console.log('Loading recording for playback:', recording);
+            console.log('Video URL:', recording.videoUrl);
+            console.log('Audio URL:', recording.audioUrl);
+            console.log('Screen Share URL:', recording.screenShareUrl);
+            console.log('Whiteboard data count:', recording.whiteboardData ? recording.whiteboardData.length : 0);
+            
+            // Update recording info
+            recordingInfo.innerHTML = `
+                <h3 class="text-lg font-semibold text-gray-800">${recording.subject || 'Unnamed Recording'}</h3>
+                <p class="text-gray-600">Duration: ${formatDuration(recording.duration)} | Created: ${new Date(recording.startTime).toLocaleString()}</p>
+                <p class="text-sm text-gray-500">Teacher: ${recording.teacherUsername || 'Unknown'}</p>
+                <div class="mt-2 text-xs text-gray-400">
+                    <p>Video: ${recording.videoUrl ? 'Available' : 'Not available'}</p>
+                    <p>Audio: ${recording.audioUrl ? 'Available' : 'Not available'}</p>
+                    <p>Screen Share: ${recording.screenShareUrl ? 'Available' : 'Not available'}</p>
+                    <p>Whiteboard Actions: ${recording.whiteboardData ? recording.whiteboardData.length : 0}</p>
+                </div>
+            `;
+            
+            // Setup media players
+            setupMediaPlayers(recording);
+            
+            // Show playback interface
+            showPlaybackInterface();
+            
+            displayStatus('Recording loaded successfully', 'success');
+        }
+
+        // Setup media players
+        function setupMediaPlayers(recording) {
+            mediaContainer.innerHTML = '';
+            
+            // Helper function to convert relative URLs to full URLs
+            function getFullUrl(relativeUrl) {
+                if (!relativeUrl) return null;
+                if (relativeUrl.startsWith('http')) return relativeUrl;
+                return `${window.location.protocol}//${window.location.host}${relativeUrl}`;
+            }
+            
+            console.log('Setting up media players for recording:', recording);
+            
+            // Create video player if video exists
+            if (recording.videoUrl) {
+                const videoUrl = getFullUrl(recording.videoUrl);
+                console.log('Creating video player with URL:', videoUrl);
+                
+                videoPlayer = document.createElement('video');
+                videoPlayer.id = 'videoPlayer';
+                videoPlayer.controls = true;
+                videoPlayer.style.width = '100%';
+                videoPlayer.style.maxHeight = '400px';
+                videoPlayer.src = videoUrl;
+                
+                videoPlayer.addEventListener('loadedmetadata', () => {
+                    console.log('Video loaded, duration:', videoPlayer.duration);
+                    totalTime.textContent = formatTime(videoPlayer.duration);
+                });
+                
+                videoPlayer.addEventListener('error', (e) => {
+                    console.error('Video loading error:', e);
+                    displayStatus('Error loading video', 'error');
+                });
+                
+                videoPlayer.addEventListener('timeupdate', updateProgress);
+                
+                mediaContainer.appendChild(videoPlayer);
+            }
+            
+            // Create audio player if audio exists
+            if (recording.audioUrl) {
+                const audioUrl = getFullUrl(recording.audioUrl);
+                console.log('Creating audio player with URL:', audioUrl);
+                
+                audioPlayer = document.createElement('audio');
+                audioPlayer.id = 'audioPlayer';
+                audioPlayer.controls = true;
+                audioPlayer.style.width = '100%';
+                audioPlayer.src = audioUrl;
+                
+                audioPlayer.addEventListener('loadedmetadata', () => {
+                    console.log('Audio loaded, duration:', audioPlayer.duration);
+                    if (!videoPlayer) {
+                        totalTime.textContent = formatTime(audioPlayer.duration);
+                    }
+                });
+                
+                audioPlayer.addEventListener('error', (e) => {
+                    console.error('Audio loading error:', e);
+                    displayStatus('Error loading audio', 'error');
+                });
+                
+                audioPlayer.addEventListener('timeupdate', updateProgress);
+                
+                mediaContainer.appendChild(audioPlayer);
+            }
+            
+            // Create screen share player if screen share exists
+            if (recording.screenShareUrl) {
+                const screenUrl = getFullUrl(recording.screenShareUrl);
+                console.log('Creating screen player with URL:', screenUrl);
+                
+                screenPlayer = document.createElement('video');
+                screenPlayer.id = 'screenPlayer';
+                screenPlayer.controls = true;
+                screenPlayer.style.width = '100%';
+                screenPlayer.style.maxHeight = '400px';
+                screenPlayer.src = screenUrl;
+                
+                screenPlayer.addEventListener('loadedmetadata', () => {
+                    console.log('Screen share loaded, duration:', screenPlayer.duration);
+                    if (!videoPlayer && !audioPlayer) {
+                        totalTime.textContent = formatTime(screenPlayer.duration);
+                    }
+                });
+                
+                screenPlayer.addEventListener('error', (e) => {
+                    console.error('Screen share loading error:', e);
+                    displayStatus('Error loading screen share', 'error');
+                });
+                
+                screenPlayer.addEventListener('timeupdate', updateProgress);
+                
+                mediaContainer.appendChild(screenPlayer);
+            }
+            
+            // Show message if no media is available
+            if (!recording.videoUrl && !recording.audioUrl && !recording.screenShareUrl) {
+                const noMediaMsg = document.createElement('div');
+                noMediaMsg.className = 'text-center text-gray-500 py-8';
+                noMediaMsg.innerHTML = `
+                    <p class="text-lg mb-2">📹 No video or audio available</p>
+                    <p class="text-sm">This recording only contains whiteboard content</p>
+                `;
+                mediaContainer.appendChild(noMediaMsg);
+            }
+            
+            // Initialize whiteboard canvas for playback
+            if (recording.whiteboardData && recording.whiteboardData.length > 0) {
+                initCanvas();
+                console.log(`Whiteboard data loaded: ${recording.whiteboardData.length} actions`);
+            }
+        }
+
+        // Show playback interface
+        function showPlaybackInterface() {
+            playbackInterface.classList.remove('hidden');
+            recordingsList.parentElement.classList.add('hidden');
+        }
+
+        // Show recordings list
+        function showRecordingsList() {
+            playbackInterface.classList.add('hidden');
+            recordingsList.parentElement.classList.remove('hidden');
+            stopPlayback();
+        }
+
+        // Start playback
+        function startPlayback() {
+            if (!currentRecording) return;
+            
+            isPlaying = true;
+            playbackStartTime = Date.now();
+            
+            // Start media playback
+            if (videoPlayer) {
+                videoPlayer.play();
+            }
+            if (audioPlayer) {
+                audioPlayer.play();
+            }
+            
+            // Start whiteboard playback
+            if (currentRecording.whiteboardData && currentRecording.whiteboardData.length > 0) {
+                startWhiteboardPlayback();
+            }
+            
+            // Update UI
+            playBtn.classList.add('hidden');
+            pauseBtn.classList.remove('hidden');
+            playbackStatus.textContent = 'Playing...';
+        }
+
+        // Start whiteboard playback
+        function startWhiteboardPlayback() {
+            currentWhiteboardIndex = 0;
+            whiteboardStartTime = Date.now();
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            whiteboardInterval = setInterval(() => {
+                if (currentWhiteboardIndex >= currentRecording.whiteboardData.length) {
+                    clearInterval(whiteboardInterval);
+                    return;
+                }
+                
+                const action = currentRecording.whiteboardData[currentWhiteboardIndex];
+                replayWhiteboardAction(action);
+                currentWhiteboardIndex++;
+            }, 1000 / parseFloat(speedSelect.value));
+        }
+
+        // Replay whiteboard action
+        function replayWhiteboardAction(action) {
+            if (!action || !ctx) return;
+            
+            switch (action.type) {
+                case 'draw':
+                    ctx.beginPath();
+                    ctx.moveTo(action.x1, action.y1);
+                    ctx.lineTo(action.x2, action.y2);
+                    ctx.strokeStyle = action.color || '#000000';
+                    ctx.lineWidth = action.lineWidth || 2;
+                    ctx.stroke();
+                    break;
+                    
+                case 'text':
+                    ctx.font = `${action.fontStyle || 'normal'} ${action.fontWeight || 'normal'} ${action.fontSize || 16}px ${action.fontFamily || 'Arial'}`;
+                    ctx.fillStyle = action.color || '#000000';
+                    ctx.fillText(action.textContent, action.textX, action.textY);
+                    break;
+                    
+                case 'clear':
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    break;
+            }
+        }
+
+        // Pause playback
+        function pausePlayback() {
+            isPlaying = false;
+            
+            // Pause media
+            if (videoPlayer) videoPlayer.pause();
+            if (audioPlayer) audioPlayer.pause();
+            
+            // Pause whiteboard
+            if (whiteboardInterval) {
+                clearInterval(whiteboardInterval);
+            }
+            
+            // Update UI
+            playBtn.classList.remove('hidden');
+            pauseBtn.classList.add('hidden');
+            playbackStatus.textContent = 'Paused';
+        }
+
+        // Stop playback
+        function stopPlayback() {
+            isPlaying = false;
+            
+            // Stop media
+            if (videoPlayer) {
+                videoPlayer.pause();
+                videoPlayer.currentTime = 0;
+            }
+            if (audioPlayer) {
+                audioPlayer.pause();
+                audioPlayer.currentTime = 0;
+            }
+            
+            // Stop whiteboard
+            if (whiteboardInterval) {
+                clearInterval(whiteboardInterval);
+            }
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Reset progress
+            progressBar.style.width = '0%';
+            currentTime.textContent = '00:00';
+            
+            // Update UI
+            playBtn.classList.remove('hidden');
+            pauseBtn.classList.add('hidden');
+            playbackStatus.textContent = 'Stopped';
+        }
+
+        // Restart playback
+        function restartPlayback() {
+            stopPlayback();
+            setTimeout(() => {
+                startPlayback();
+            }, 100);
+        }
+
+        // Update playback speed
+        function updatePlaybackSpeed() {
+            const speed = parseFloat(speedSelect.value);
+            
+            if (videoPlayer) videoPlayer.playbackRate = speed;
+            if (audioPlayer) audioPlayer.playbackRate = speed;
+            
+            // Restart whiteboard playback with new speed
+            if (isPlaying && whiteboardInterval) {
+                clearInterval(whiteboardInterval);
+                startWhiteboardPlayback();
+            }
+        }
+
+        // Update progress bar
+        function updateProgress() {
+            const player = videoPlayer || audioPlayer;
+            if (!player) return;
+            
+            const progress = (player.currentTime / player.duration) * 100;
+            progressBar.style.width = progress + '%';
+            currentTime.textContent = formatTime(player.currentTime);
+        }
+
+        // Format time
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Format duration
+        function formatDuration(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}m ${secs}s`;
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
